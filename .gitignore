@@ -1,0 +1,13 @@
+# Python environment and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Generated EPUB outputs
+epubs/annotated*.epub
+
+# IDE configuration
+.vscode/
+.idea/
