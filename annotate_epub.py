@@ -30,13 +30,34 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def parse_model_response(response) -> ChapterAnnotations:
+def parse_model_response(response):
+    # SDK may return parsed data directly
     if hasattr(response, "parsed") and response.parsed is not None:
         return ChapterAnnotations.model_validate(response.parsed)
 
+    # Or text payload
     payload = getattr(response, "text", None)
     if payload:
-        return ChapterAnnotations.model_validate_json(payload)
+        try:
+            return ChapterAnnotations.model_validate_json(payload)
+        except Exception:
+            # sometimes the SDK returns a Python dict instead of JSON text
+            if isinstance(payload, dict):
+                return ChapterAnnotations.model_validate(payload)
+
+    # Sometimes the output is nested under .candidates[0].content.parts
+    candidates = getattr(response, "candidates", None)
+    if candidates:
+        for candidate in candidates:
+            if hasattr(candidate, "content") and candidate.content:
+                parts = getattr(candidate.content, "parts", None)
+                if parts:
+                    for part in parts:
+                        if hasattr(part, "text"):
+                            try:
+                                return ChapterAnnotations.model_validate_json(part.text)
+                            except Exception:
+                                pass
 
     raise ValueError("No usable structured response received from Gemini API.")
 
@@ -118,7 +139,7 @@ def annotate_html(soup: BeautifulSoup, annotations: list[WordAnnotation]) -> Non
 
             matched_str = match.group(1)
             before = str(text_node)[: match.start()]
-            after = str(text_node)[match.end() :]
+            after = str(text_node)[match.end():]
 
             span = soup.new_tag("span", attrs={"class": "annotated-word"})
             span.string = matched_str
@@ -128,8 +149,8 @@ def annotate_html(soup: BeautifulSoup, annotations: list[WordAnnotation]) -> Non
             a_ref.string = str(idx)
             sup.append(a_ref)
 
-            new_elements = [soup.new_string(before), span, sup, soup.new_string(after)]
-            text_node.replace_with(*new_elements)
+            clone = [soup.new_string(before), span, sup, soup.new_string(after)]
+            text_node.replace_with(*clone)
             replaced = True
             break
 
@@ -137,7 +158,6 @@ def annotate_html(soup: BeautifulSoup, annotations: list[WordAnnotation]) -> Non
             li = soup.new_tag("li", id=fn_id, attrs={"epub:type": "footnote"})
             p = soup.new_tag("p")
             p.string = f"{item.word}: {item.definition} "
-
             a_back = soup.new_tag("a", href=f"#{ref_id}", attrs={"epub:type": "backlink"})
             a_back.string = "↩"
             p.append(a_back)
