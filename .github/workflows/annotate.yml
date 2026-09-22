@@ -12,6 +12,10 @@ on:
         required: true
         default: 'epubs/annotated.epub'
 
+# Forces runner to execute JavaScript actions on Node.js 24
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   annotate:
     runs-on: ubuntu-latest
@@ -34,6 +38,14 @@ jobs:
       - name: Process EPUB
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python annotate_epub.py --input "${{ github.event.inputs.input_file }}" --output "${{ github.event.inputs.output_file }}"
+
+      - name: Upload Annotated EPUB
+        uses: actions/upload-artifact@v4
+        with:
+          name: annotated-epub
+          path: ${{ github.event.inputs.output_file }}
         run: |
           python annotate_epub.py --input "${{ github.event.inputs.input_file }}" --output "${{ github.event.inputs.output_file }}"
 
