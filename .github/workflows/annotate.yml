@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       input_file:
-        description: 'Path to input EPUB (e.g., epubs/book.epub)'
+        description: 'Path to input EPUB (e.g., epubs/input.epub)'
         required: true
         default: 'epubs/input.epub'
       output_file:
